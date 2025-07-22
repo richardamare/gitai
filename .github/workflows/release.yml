@@ -54,9 +54,9 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.get_version.outputs.VERSION }}
-          name: Release ${{ steps.get_version.outputs.VERSION }}
+          name: ${{ steps.get_version.outputs.VERSION }}
           draft: false # Set to true if you want to draft the release first
-          prerelease: false # Set to true for pre-releases
+          prerelease: ${{ contains(steps.get_version.outputs.VERSION, 'alpha') || contains(steps.get_version.outputs.VERSION, 'beta') }}
           body: |
             ## Release Notes for ${{ steps.get_version.outputs.VERSION }}
 
