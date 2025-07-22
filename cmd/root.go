@@ -25,6 +25,7 @@ func init() {
     
     // Add subcommands
     rootCmd.AddCommand(NewCommitCommand())
+    rootCmd.AddCommand(NewMRCommand())
     // Add other commands here: PR, review, etc.
 }
 

@@ -5,8 +5,8 @@ type CommitMessage struct {
     Message string `json:"message"`
 }
 
-// PrDetails represents PR information
-type PrDetails struct {
+// MrDetails represents MR information
+type MrDetails struct {
     Title        string        `json:"title"`
     Description  string        `json:"description"`
     FileSummaries []FileSummary `json:"fileSummaries"`
@@ -18,8 +18,8 @@ type FileSummary struct {
     Description string `json:"description"`
 }
 
-// PrReviewDetails represents PR review feedback
-type PrReviewDetails struct {
+// MrReviewDetails represents PR review feedback
+type MrReviewDetails struct {
     Review []ReviewComment `json:"review"`
 }
 
@@ -32,7 +32,12 @@ type ReviewComment struct {
     CodeSnippet string `json:"codeSnippet"`
 }
 
-// PrTitle represents a PR title
-type PrTitle struct {
+// MrTitle represents a PR title
+type MrTitle struct {
     Title string `json:"title"`
+}
+
+// MrReviewSummary represents a general review summary for a PR
+type MrReviewSummary struct {
+    Summary string `json:"summary"`
 }

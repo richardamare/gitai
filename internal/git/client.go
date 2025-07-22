@@ -49,6 +49,36 @@ func (c *Client) Commit(message string) error {
     return nil
 }
 
+// GetUnifiedDiff returns the diff of all changes (staged and unstaged) with extended context
+func (c *Client) GetUnifiedDiff() (string, error) {
+    cmd := exec.Command("git", "diff", "-U50")
+    output, err := cmd.Output()
+    if err != nil {
+        return "", fmt.Errorf("failed to get unified diff. Is git installed? %w", err)
+    }
+    return strings.TrimSpace(string(output)), nil
+}
+
+// GetDiffFromMain returns the diff between the current branch and the main branch
+func (c *Client) GetDiffFromMain(mainBranch string) (string, error) {
+	cmd := exec.Command("git", "diff", mainBranch, "-U50")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get diff from %s branch. Is git installed and %s branch exists? %w", mainBranch, mainBranch, err)
+	}
+	return strings.TrimSpace(string(output)), nil
+}
+
+// GetBranchDiff returns the diff of the current branch compared to its upstream
+func (c *Client) GetBranchDiff() (string, error) {
+	cmd := exec.Command("git", "diff", "@{u}", "-U50")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get diff of current branch against upstream. Is git installed and is the branch tracked? %w", err)
+	}
+	return strings.TrimSpace(string(output)), nil
+}
+
 // GetCurrentBranch returns the current git branch
 func (c *Client) GetCurrentBranch() (string, error) {
     cmd := exec.Command("git", "branch", "--show-current")

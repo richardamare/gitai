@@ -9,6 +9,8 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
+const model = openai.GPT4oMini
+
 // Client handles AI operations
 type Client struct {
     client *openai.Client
@@ -23,21 +25,12 @@ func NewClient(apiKey string) *Client {
 
 // GenerateCommitMessage generates a commit message from diff
 func (c *Client) GenerateCommitMessage(diff string) (*models.CommitMessage, error) {
-    prompt := fmt.Sprintf(`Generate a concise, conventional commit message for the following git diff. 
-Follow conventional commit format (type(scope): description).
-
-Diff:
-%s
-
-Return only a JSON object with this structure:
-{
-  "message": "commit message here"
-}`, diff)
+    prompt := fmt.Sprintf(commitMessagePrompt, diff)
 
     resp, err := c.client.CreateChatCompletion(
         context.Background(),
         openai.ChatCompletionRequest{
-            Model: openai.GPT4o,
+            Model: model,
             Messages: []openai.ChatCompletionMessage{
                 {
                     Role:    openai.ChatMessageRoleUser,
@@ -75,17 +68,17 @@ Return only a JSON object with this structure:
     return &commitMsg, nil
 }
 
-// GeneratePRDetails generates PR title and description from diff
-func (c *Client) GeneratePRDetails(diff string) (*models.PrDetails, error) {
-    prompt := fmt.Sprintf(`Analyze the following git diff and generate a PR title, description, and file summaries.
+// GenerateMRDetails generates MR title and description from diff
+func (c *Client) GenerateMRDetails(diff string) (*models.MrDetails, error) {
+    prompt := fmt.Sprintf(`Analyze the following git diff and generate a MR title, description, and file summaries.
 
 Diff:
 %s
 
 Return a JSON object with this structure:
 {
-  "title": "PR title here",
-  "description": "Detailed PR description here",
+  "title": "MR title here",
+  "description": "Detailed MR description here",
   "fileSummaries": [
     {
       "file": "path/to/file",
@@ -97,7 +90,7 @@ Return a JSON object with this structure:
     resp, err := c.client.CreateChatCompletion(
         context.Background(),
         openai.ChatCompletionRequest{
-            Model: openai.GPT4,
+            Model: model,
             Messages: []openai.ChatCompletionMessage{
                 {
                     Role:    openai.ChatMessageRoleUser,
@@ -145,7 +138,7 @@ Return a JSON object with this structure:
         return nil, fmt.Errorf("failed to generate PR details: %w", err)
     }
 
-    var prDetails models.PrDetails
+    var prDetails models.MrDetails
     if err := json.Unmarshal([]byte(resp.Choices[0].Message.Content), &prDetails); err != nil {
         return nil, fmt.Errorf("failed to parse AI response: %w", err)
     }
@@ -153,31 +146,59 @@ Return a JSON object with this structure:
     return &prDetails, nil
 }
 
-// ReviewPR generates review comments for a PR diff
-func (c *Client) ReviewPR(diff string) (*models.PrReviewDetails, error) {
-    prompt := fmt.Sprintf(`Review the following git diff and provide constructive feedback. 
-Focus on code quality, security, performance, and best practices.
+// GenerateMRTitle generates a concise PR title from a diff
+func (c *Client) GenerateMRTitle(diff string) (string, error) {
+	prompt := fmt.Sprintf(mrTitlePrompt, diff)
 
-Diff:
-%s
+	resp, err := c.client.CreateChatCompletion(
+		context.Background(),
+		openai.ChatCompletionRequest{
+			Model: model,
+			Messages: []openai.ChatCompletionMessage{
+				{
+					Role:    openai.ChatMessageRoleUser,
+					Content: prompt,
+				},
+			},
+			Temperature: 0.3,
+			ResponseFormat: &openai.ChatCompletionResponseFormat{
+				Type: openai.ChatCompletionResponseFormatTypeJSONSchema,
+				JSONSchema: &openai.ChatCompletionResponseFormatJSONSchema{
+					Name: "PrTitle",
+					Schema: json.RawMessage(`{
+						"type": "object",
+						"properties": {
+							"title": {
+								"type": "string"
+							}
+						},
+						"required": ["title"]
+					}`),
+				},
+			},
+		},
+	)
 
-Return a JSON object with this structure:
-{
-  "review": [
-    {
-      "file": "path/to/file",
-      "line": 42,
-      "category": "Security|Bug|Optimization|Improvement",
-      "comment": "Review comment here",
-      "codeSnippet": "relevant code snippet"
-    }
-  ]
-}`, diff)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate PR title: %w", err)
+	}
+
+	var prTitle models.MrTitle
+	if err := json.Unmarshal([]byte(resp.Choices[0].Message.Content), &prTitle); err != nil {
+		return "", fmt.Errorf("failed to parse AI response: %w", err)
+	}
+
+	return prTitle.Title, nil
+}
+
+// ReviewMR generates review comments for a MR diff
+func (c *Client) ReviewMR(diff string) (*models.MrReviewDetails, error) {
+    prompt := fmt.Sprintf(reviewPrompt, diff)
 
     resp, err := c.client.CreateChatCompletion(
         context.Background(),
         openai.ChatCompletionRequest{
-            Model: openai.GPT4oMini,
+            Model: model,
             Messages: []openai.ChatCompletionMessage{
                 {
                     Role:    openai.ChatMessageRoleUser,
@@ -218,7 +239,7 @@ Return a JSON object with this structure:
         return nil, fmt.Errorf("failed to generate PR review: %w", err)
     }
 
-    var reviewDetails models.PrReviewDetails
+    var reviewDetails models.MrReviewDetails
     if err := json.Unmarshal([]byte(resp.Choices[0].Message.Content), &reviewDetails); err != nil {
         return nil, fmt.Errorf("failed to parse AI response: %w", err)
     }
