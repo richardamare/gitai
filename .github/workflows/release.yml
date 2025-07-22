@@ -1,0 +1,78 @@
+name: Release Go Application
+
+on:
+  push:
+    tags:
+      - "v*.*.*" # Trigger on pushes to tags like v1.0.0, v1.1.0, etc.
+
+jobs:
+  build_and_release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Grant write permission to upload release assets
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.21" # Or your desired Go version
+
+      - name: Get Release Version
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Display Release Version
+        run: |
+          echo "Releasing version: ${{ steps.get_version.outputs.VERSION }}"
+
+      - name: Run Go Mod Tidy
+        run: go mod tidy
+
+      - name: Build for Linux (AMD64)
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o gitai-linux-amd64 -ldflags="-s -w -X 'main.version=${{ steps.get_version.outputs.VERSION }}'" .
+      - name: Build for Linux (ARM64)
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o gitai-linux-arm64 -ldflags="-s -w -X 'main.version=${{ steps.get_version.outputs.VERSION }}'" .
+
+      - name: Build for Windows (AMD64)
+        run: |
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o gitai-windows-amd64.exe -ldflags="-s -w -X 'main.version=${{ steps.get_version.outputs.VERSION }}'" .
+
+      - name: Build for macOS (AMD64)
+        run: |
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o gitai-darwin-amd64 -ldflags="-s -w -X 'main.version=${{ steps.get_version.outputs.VERSION }}'" .
+      - name: Build for macOS (ARM64) (Apple Silicon)
+        run: |
+          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o gitai-darwin-arm64 -ldflags="-s -w -X 'main.version=${{ steps.get_version.outputs.VERSION }}'" .
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.get_version.outputs.VERSION }}
+          name: Release ${{ steps.get_version.outputs.VERSION }}
+          draft: false # Set to true if you want to draft the release first
+          prerelease: false # Set to true for pre-releases
+          body: |
+            ## Release Notes for ${{ steps.get_version.outputs.VERSION }}
+
+            This release includes:
+            - ✨ New features
+            - 🐛 Bug fixes
+            - 🧹 Improvements
+
+            ### Download
+            Choose the binary appropriate for your operating system and architecture.
+
+          files: |
+            gitai-linux-amd64
+            gitai-linux-arm64
+            gitai-windows-amd64.exe
+            gitai-darwin-amd64
+            gitai-darwin-arm64
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
